@@ -3,6 +3,7 @@ package com.github.t1.nginx;
 import com.github.t1.nginx.NginxConfig.*;
 import com.github.t1.nginx.NginxConfig.NginxServer.NginxServerBuilder;
 import com.github.t1.nginx.NginxConfig.NginxServerLocation.NginxServerLocationBuilder;
+import com.github.t1.nginx.NginxConfig.NginxUpstream.NginxUpstreamBuilder;
 import com.github.t1.nginx.Tokenizer.Visitor;
 import lombok.*;
 
@@ -28,10 +29,13 @@ class NginxConfigParser {
     private StringBuilder after = new StringBuilder();
     private StringBuilder current = before;
     private List<NginxServer> servers = new ArrayList<>();
+    private List<NginxUpstream> upstreams = new ArrayList<>();
 
     private NginxConfigParser(Reader reader) { new Tokenizer(reader).accept(new RootVisitor()); }
 
     private class StringVisitor extends Visitor {
+        protected int nesting = 0;
+
         @Override public Visitor visitWhitespace(String whitespace) {
             current.append(whitespace);
             return this;
@@ -44,10 +48,12 @@ class NginxConfigParser {
 
         @Override public Visitor startBlock() {
             current.append("{");
+            ++nesting;
             return this;
         }
 
         @Override public Visitor endBlock() {
+            --nesting;
             current.append("}");
             return this;
         }
@@ -65,10 +71,16 @@ class NginxConfigParser {
     }
 
     private class HttpVisitor extends StringVisitor {
+        private final List<UpstreamVisitor> upstreamVisitors = new ArrayList<>();
         private final List<ServerVisitor> serverVisitors = new ArrayList<>();
 
         @Override public Visitor visitToken(String token) {
-            if ("server".equals(token)) {
+            if ("upstream".equals(token)) {
+                current = null;
+                UpstreamVisitor upstreamVisitor = new UpstreamVisitor(this);
+                upstreamVisitors.add(upstreamVisitor);
+                return new NamedBlockNameVisitor(upstreamVisitor);
+            } else if ("server".equals(token)) {
                 current = null;
                 ServerVisitor serverVisitor = new ServerVisitor(this);
                 serverVisitors.add(serverVisitor);
@@ -89,11 +101,54 @@ class NginxConfigParser {
         }
 
         @Override public Visitor endBlock() {
+            for (UpstreamVisitor upstream : upstreamVisitors)
+                upstreams.add(upstream.upstream.build());
             for (ServerVisitor server : serverVisitors)
                 servers.add(server.server.build());
             super.endBlock();
             return new RootVisitor();
         }
+    }
+
+    private static class NamedBlockNameVisitor extends Visitor {
+        private NamedBlockVisitor next;
+
+        NamedBlockNameVisitor(NamedBlockVisitor next) { this.next = next; }
+
+        @Override public Visitor visitToken(String token) {
+            next.setName(token);
+            return this;
+        }
+
+        @Override public Visitor startBlock() { return next; }
+
+        @Override public Visitor endBlock() { throw new UnsupportedOperationException("should never get here"); }
+    }
+
+    private static abstract class NamedBlockVisitor extends Visitor {
+        abstract void setName(String name);
+    }
+
+    private static class UpstreamVisitor extends NamedBlockVisitor {
+        private Visitor next;
+        private NginxUpstreamBuilder upstream = NginxUpstream.builder();
+
+        UpstreamVisitor(Visitor next) { this.next = next; }
+
+        @Override void setName(String name) { upstream.name(name); }
+
+        @Override public Visitor visitToken(String token) {
+            if ("least_conn;".equals(token)) {
+                upstream.method("least_conn");
+            }
+else            if ("server".equals(token)) {
+                return new ValueVisitor(this, value -> upstream.server(value));
+            }
+            return this;
+        }
+
+        @Override public Visitor endBlock() { return next; }
+
     }
 
     private static class ServerVisitor extends Visitor {
@@ -152,6 +207,7 @@ class NginxConfigParser {
         NginxConfig result = new NginxConfig();
         result.before = before.toString();
         result.after = after.toString();
+        result.upstreams = upstreams;
         result.servers = servers;
         return result;
     }

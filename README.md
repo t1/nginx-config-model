@@ -1,4 +1,4 @@
-Java model classes for NGINX config files
+Simplistic Java model classes for NGINX config files
 
 
 # Goals
@@ -21,3 +21,7 @@ Java model classes for NGINX config files
 * [odiszapc/nginx-java-parser](https://github.com/odiszapc/nginx-java-parser)
     * Doesn't retain empty lines
     * Not typesafe
+
+# Restrictions
+
+Anything between `upstream` and `server` directives will be moved after the last `server` directive. 

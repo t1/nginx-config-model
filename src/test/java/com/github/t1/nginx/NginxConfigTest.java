@@ -15,17 +15,17 @@ public class NginxConfigTest {
             .builder().name("worker02").listen("80")
             .location(NginxServerLocation.builder().pass("http://localhost:8280/").build()).build();
 
-    private final NginxConfig config = NginxConfig.readFrom(NginxConfigTest.class.getResource("nginx.conf"));
+    private static final NginxConfig config = NginxConfig.readFrom(NginxConfigTest.class.getResource("nginx.conf"));
+
+    @Test
+    public void shouldRetainOriginalToString() throws Exception {
+        assertThat(config.toString()).isEqualTo(contentOf(NginxConfigTest.class.getResource("nginx.conf")));
+    }
 
     @Test
     public void shouldProvideServers() throws Exception {
         List<NginxServer> servers = config.getServers();
 
         assertThat(servers).containsExactly(WORKER_01, WORKER_02);
-    }
-
-    @Test
-    public void shouldRetainOriginalToString() throws Exception {
-        assertThat(config.toString()).isEqualTo(contentOf(NginxConfigTest.class.getResource("nginx.conf")));
     }
 }
