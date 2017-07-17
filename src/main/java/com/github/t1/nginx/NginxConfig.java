@@ -28,6 +28,7 @@ public class NginxConfig {
     }
 
 
+    /** https://www.nginx.com/resources/admin-guide/load-balancer/ */
     @Value
     @Builder
     public static class NginxUpstream {
