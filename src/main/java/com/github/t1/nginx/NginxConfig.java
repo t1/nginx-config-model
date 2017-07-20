@@ -12,7 +12,7 @@ public class NginxConfig {
     @SneakyThrows(MalformedURLException.class)
     public static NginxConfig readFrom(URI uri) { return readFrom(uri.toURL()); }
 
-    public static NginxConfig readFrom(URL url) { return NginxConfigParser.parse(url); }
+    static NginxConfig readFrom(URL url) { return NginxConfigParser.parse(url); }
 
     String before, after;
     List<NginxServer> servers;
@@ -35,15 +35,18 @@ public class NginxConfig {
         private static final String PREFIX = "        server ";
         private static final String SUFFIX = ";\n";
 
+        String before, after;
         String name;
         String method;
         @Singular List<String> servers;
 
         @Override public String toString() {
             return "upstream " + name + " {\n"
+                    + (before.isEmpty() ? "" : "        " + before + "\n")
                     + ((method == null) ? "" : "        " + method + ";\n\n")
                     + ((servers == null) ? ""
                                : servers.stream().collect(joining(SUFFIX + PREFIX, PREFIX, SUFFIX)))
+                    + (after.isEmpty() ? "" : "        " + after + "\n")
                     + "    }\n";
         }
     }
@@ -58,7 +61,7 @@ public class NginxConfig {
         @Override public String toString() {
             return "server {\n"
                     + "        server_name " + name + ";\n"
-                    + "        listen      " + listen + ";\n"
+                    + "        listen " + listen + ";\n"
                     + location
                     + "    }\n";
         }
@@ -67,11 +70,21 @@ public class NginxConfig {
     @Value
     @Builder
     public static class NginxServerLocation {
-        String pass;
+        @NonNull String before;
+        @NonNull String after;
+        @NonNull String name;
+        @NonNull String pass;
+
+        @SuppressWarnings("unused")
+        static class NginxServerLocationBuilder {
+            String before = "", after = "";
+        }
 
         @Override public String toString() {
-            return "        location / {\n"
-                    + "            proxy_pass   " + pass + ";\n"
+            return "        location " + name + " {\n"
+                    + (before.isEmpty() ? "" : "            " + before + "\n")
+                    + "            proxy_pass " + pass + ";\n"
+                    + (after.isEmpty() ? "" : "            " + after + "\n")
                     + "        }\n";
         }
     }

@@ -8,6 +8,7 @@ Simplistic Java model classes for NGINX config files
 * Change only what is known, esp.:
     * Don't change unknown tokens
     * Don't change comments or whitespace
+    * This does _not_ have to be perfect for whitespace between known expressions
 
 # Non-Goals
 
@@ -25,3 +26,4 @@ Simplistic Java model classes for NGINX config files
 # Restrictions
 
 Anything between `upstream` and `server` directives will be moved after the last `server` directive. 
+This kind of moving also happens to unknown expressions within known blocks.

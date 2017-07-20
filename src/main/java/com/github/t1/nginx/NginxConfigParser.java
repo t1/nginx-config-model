@@ -4,13 +4,11 @@ import com.github.t1.nginx.NginxConfig.*;
 import com.github.t1.nginx.NginxConfig.NginxServer.NginxServerBuilder;
 import com.github.t1.nginx.NginxConfig.NginxServerLocation.NginxServerLocationBuilder;
 import com.github.t1.nginx.NginxConfig.NginxUpstream.NginxUpstreamBuilder;
-import com.github.t1.nginx.Tokenizer.Visitor;
-import lombok.*;
+import com.github.t1.nginx.Tokenizer.*;
 
 import java.io.*;
 import java.net.URL;
 import java.util.*;
-import java.util.function.Consumer;
 
 import static java.nio.charset.StandardCharsets.*;
 
@@ -34,8 +32,6 @@ class NginxConfigParser {
     private NginxConfigParser(Reader reader) { new Tokenizer(reader).accept(new RootVisitor()); }
 
     private class StringVisitor extends Visitor {
-        protected int nesting = 0;
-
         @Override public Visitor visitWhitespace(String whitespace) {
             current.append(whitespace);
             return this;
@@ -48,12 +44,10 @@ class NginxConfigParser {
 
         @Override public Visitor startBlock() {
             current.append("{");
-            ++nesting;
             return this;
         }
 
         @Override public Visitor endBlock() {
-            --nesting;
             current.append("}");
             return this;
         }
@@ -110,45 +104,37 @@ class NginxConfigParser {
         }
     }
 
-    private static class NamedBlockNameVisitor extends Visitor {
-        private NamedBlockVisitor next;
-
-        NamedBlockNameVisitor(NamedBlockVisitor next) { this.next = next; }
-
-        @Override public Visitor visitToken(String token) {
-            next.setName(token);
-            return this;
-        }
-
-        @Override public Visitor startBlock() { return next; }
-
-        @Override public Visitor endBlock() { throw new UnsupportedOperationException("should never get here"); }
-    }
-
-    private static abstract class NamedBlockVisitor extends Visitor {
-        abstract void setName(String name);
-    }
-
     private static class UpstreamVisitor extends NamedBlockVisitor {
-        private Visitor next;
-        private NginxUpstreamBuilder upstream = NginxUpstream.builder();
+        private final NginxUpstreamBuilder upstream = NginxUpstream.builder();
 
-        UpstreamVisitor(Visitor next) { this.next = next; }
+        private UpstreamVisitor(Visitor next) { super(next); }
 
         @Override void setName(String name) { upstream.name(name); }
 
         @Override public Visitor visitToken(String token) {
             if ("least_conn;".equals(token)) {
                 upstream.method("least_conn");
-            }
-else            if ("server".equals(token)) {
-                return new ValueVisitor(this, value -> upstream.server(value));
+            } else if ("server".equals(token)) {
+                return new ValueVisitor(this, value -> {
+                    upstream.server(value);
+                    toAfter();
+                });
+            } else {
+                append(token);
             }
             return this;
         }
 
-        @Override public Visitor endBlock() { return next; }
+        @Override public Visitor visitWhitespace(String whitespace) {
+            append(whitespace);
+            return this;
+        }
 
+        @Override public Visitor endBlock() {
+            upstream.before(before());
+            upstream.after(after());
+            return next();
+        }
     }
 
     private static class ServerVisitor extends Visitor {
@@ -163,7 +149,7 @@ else            if ("server".equals(token)) {
             } else if ("listen".equals(token)) {
                 return new ValueVisitor(this, value -> server.listen(value));
             } else if ("location".equals(token)) {
-                return new LocationVisitor(this, server);
+                return new NamedBlockNameVisitor(new LocationVisitor(this, server));
             } else {
                 return super.visitToken(token);
             }
@@ -172,34 +158,37 @@ else            if ("server".equals(token)) {
         @Override public Visitor endBlock() { return next; }
     }
 
-    @RequiredArgsConstructor
-    private static class LocationVisitor extends Visitor {
-        private final Visitor next;
+    private static class LocationVisitor extends NamedBlockVisitor {
         private final NginxServerBuilder server;
         private NginxServerLocationBuilder location = NginxServerLocation.builder();
+
+        private LocationVisitor(Visitor next, NginxServerBuilder server) {
+            super(next);
+            this.server = server;
+        }
+
+        @Override void setName(String name) { location.name(name); }
 
         @Override public Visitor visitToken(String token) {
             if ("proxy_pass".equals(token)) {
                 return new ValueVisitor(this, value -> location.pass(value));
-            } else
-                return this;
+            } else {
+                toAfter();
+                append(token);
+            }
+            return this;
+        }
+
+        @Override public Visitor visitWhitespace(String whitespace) {
+            append(whitespace);
+            return this;
         }
 
         @Override public Visitor endBlock() {
+            location.before(before());
+            location.after(after());
             server.location(location.build());
-            return next;
-        }
-    }
-
-    @AllArgsConstructor
-    private static class ValueVisitor extends Visitor {
-        private Visitor next;
-        private Consumer<String> consumer;
-
-        @Override public Visitor visitToken(String token) {
-            assert token.endsWith(";");
-            consumer.accept(token.substring(0, token.length() - 1));
-            return next;
+            return next();
         }
     }
 
