@@ -3,6 +3,7 @@ package com.github.t1.nginx;
 import com.github.t1.nginx.NginxConfig.*;
 import org.junit.Test;
 
+import java.net.URL;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
@@ -13,7 +14,9 @@ public class NginxConfigTest {
             .location(NginxServerLocation.builder().name("/").pass("http://backend")
                                          .after("proxy_set_header Host $host;\n"
                                                  + "            proxy_set_header X-Real-IP $remote_addr;")
-                                         .build()).build();
+                                         .build())
+            .location(NginxServerLocation.builder().name("/foo").pass("http://backend/foo").build())
+            .build();
     private static final NginxServer WORKER_01 = NginxServer
             .builder().name("worker01").listen("80")
             .location(NginxServerLocation.builder().name("/").pass("http://localhost:8180/").build()).build();
@@ -21,7 +24,8 @@ public class NginxConfigTest {
             .builder().name("worker02").listen("80")
             .location(NginxServerLocation.builder().name("/").pass("http://localhost:8280/").build()).build();
 
-    private static final NginxConfig config = NginxConfig.readFrom(NginxConfigTest.class.getResource("nginx.conf"));
+    private static final URL RESOURCE = NginxConfigTest.class.getResource("nginx.conf");
+    private static final NginxConfig config = NginxConfig.readFrom(RESOURCE);
     private static final NginxUpstream UPSTREAM = NginxUpstream
             .builder().name("backend").method("least_conn")
             .before("# lb-before-comment")
@@ -31,7 +35,7 @@ public class NginxConfigTest {
 
     @Test
     public void shouldRetainOriginalToString() throws Exception {
-        assertThat(config.toString()).isEqualTo(contentOf(NginxConfigTest.class.getResource("nginx.conf")));
+        assertThat(config.toString()).isEqualTo(contentOf(RESOURCE));
     }
 
     @Test

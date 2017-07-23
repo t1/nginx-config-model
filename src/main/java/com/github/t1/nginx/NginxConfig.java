@@ -56,13 +56,13 @@ public class NginxConfig {
     public static class NginxServer {
         String name;
         String listen;
-        NginxServerLocation location;
+        @Singular List<NginxServerLocation> locations;
 
         @Override public String toString() {
             return "server {\n"
                     + "        server_name " + name + ";\n"
                     + "        listen " + listen + ";\n"
-                    + location
+                    + locations.stream().map(NginxServerLocation::toString).collect(joining())
                     + "    }\n";
         }
     }
