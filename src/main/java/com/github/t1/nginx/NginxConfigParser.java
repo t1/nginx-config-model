@@ -193,11 +193,12 @@ class NginxConfigParser {
     }
 
     private NginxConfig build() {
-        NginxConfig result = new NginxConfig();
-        result.before = before.toString();
-        result.after = after.toString();
-        result.upstreams = upstreams;
-        result.servers = servers;
-        return result;
+        return NginxConfig
+                .builder()
+                .before(before.toString())
+                .after(after.toString())
+                .upstreams(upstreams)
+                .servers(servers)
+                .build();
     }
 }

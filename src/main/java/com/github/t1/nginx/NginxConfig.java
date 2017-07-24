@@ -1,13 +1,17 @@
 package com.github.t1.nginx;
 
 import lombok.*;
+import lombok.experimental.Wither;
 
 import java.net.*;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.*;
 
-@Getter
+@Value
+@Builder
+@Wither
 public class NginxConfig {
     @SneakyThrows(MalformedURLException.class)
     public static NginxConfig readFrom(URI uri) { return readFrom(uri.toURL()); }
@@ -28,9 +32,26 @@ public class NginxConfig {
     }
 
 
+    public Stream<NginxUpstream> upstreams() { return upstreams.stream(); }
+
+    public Stream<NginxServer> servers() { return servers.stream(); }
+
+    public NginxConfig withoutUpstream(String name) {
+        return withUpstreams(upstreams().filter(upstream -> !upstream.getName().equals(name)).collect(toList()));
+    }
+
+    public NginxConfig withUpstream(NginxUpstream upstream) {
+        List<NginxUpstream> list = new ArrayList<>();
+        list.addAll(upstreams);
+        list.add(upstream);
+        return withUpstreams(list);
+    }
+
+
     /** https://www.nginx.com/resources/admin-guide/load-balancer/ */
     @Value
     @Builder
+    @Wither
     public static class NginxUpstream {
         private static final String PREFIX = "        server ";
         private static final String SUFFIX = ";\n";
@@ -48,6 +69,12 @@ public class NginxConfig {
                                : servers.stream().collect(joining(SUFFIX + PREFIX, PREFIX, SUFFIX)))
                     + (after.isEmpty() ? "" : "        " + after + "\n")
                     + "    }\n";
+        }
+
+        public Stream<String> servers() { return servers.stream(); }
+
+        public NginxUpstream withoutServer(String uri) {
+            return withServers(servers().filter(server -> !server.equals(uri)).collect(toList()));
         }
     }
 
