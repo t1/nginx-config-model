@@ -73,8 +73,15 @@ public class NginxConfig {
 
         public Stream<String> servers() { return servers.stream(); }
 
-        public NginxUpstream withoutServer(String uri) {
-            return withServers(servers().filter(server -> !server.equals(uri)).collect(toList()));
+        public NginxUpstream withoutServer(String server) {
+            return withServers(servers().filter(s -> !s.equals(server)).collect(toList()));
+        }
+
+        public NginxUpstream withServer(String server) {
+            List<String> with = new ArrayList<>();
+            with.addAll(servers);
+            with.add(server);
+            return withServers(with);
         }
     }
 
