@@ -44,6 +44,7 @@ public class NginxConfig {
         List<NginxUpstream> list = new ArrayList<>();
         list.addAll(upstreams);
         list.add(upstream);
+        list.sort(null);
         return withUpstreams(list);
     }
 
@@ -52,7 +53,7 @@ public class NginxConfig {
     @Value
     @Builder
     @Wither
-    public static class NginxUpstream {
+    public static class NginxUpstream implements Comparable<NginxUpstream> {
         private static final String PREFIX = "        server ";
         private static final String SUFFIX = ";\n";
 
@@ -81,7 +82,12 @@ public class NginxConfig {
             List<String> with = new ArrayList<>();
             with.addAll(servers);
             with.add(server);
+            with.sort(null);
             return withServers(with);
+        }
+
+        @Override public int compareTo(NginxUpstream that) {
+            return (that == null) ? -1 : this.name.compareTo(that.name);
         }
     }
 
