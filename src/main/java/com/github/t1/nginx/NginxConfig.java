@@ -32,12 +32,14 @@ public class NginxConfig {
     }
 
 
-    public Stream<NginxUpstream> upstreams() { return upstreams.stream(); }
+    public Optional<NginxUpstream> upstream(String name) {
+        return upstreams.stream().filter(upstream -> upstream.getName().equals(name)).findAny();
+    }
 
     public Stream<NginxServer> servers() { return servers.stream(); }
 
     public NginxConfig withoutUpstream(String name) {
-        return withUpstreams(upstreams().filter(upstream -> !upstream.getName().equals(name)).collect(toList()));
+        return withUpstreams(upstreams.stream().filter(upstream -> !upstream.getName().equals(name)).collect(toList()));
     }
 
     public NginxConfig withUpstream(NginxUpstream upstream) {
@@ -58,9 +60,14 @@ public class NginxConfig {
         private static final String SUFFIX = ";\n";
 
         String before, after;
-        String name;
+        @NonNull String name;
         String method;
         @Singular List<String> servers;
+
+        @SuppressWarnings({ "unused", "WeakerAccess" })
+        public static class NginxUpstreamBuilder {
+            String before = "", after = "";
+        }
 
         @Override public String toString() {
             return "upstream " + name + " {\n"
@@ -72,10 +79,8 @@ public class NginxConfig {
                     + "    }\n";
         }
 
-        public Stream<String> servers() { return servers.stream(); }
-
         public NginxUpstream withoutServer(String server) {
-            return withServers(servers().filter(s -> !s.equals(server)).collect(toList()));
+            return withServers(servers.stream().filter(s -> !s.equals(server)).collect(toList()));
         }
 
         public NginxUpstream withServer(String server) {
@@ -86,9 +91,7 @@ public class NginxConfig {
             return withServers(with);
         }
 
-        @Override public int compareTo(NginxUpstream that) {
-            return (that == null) ? -1 : this.name.compareTo(that.name);
-        }
+        @Override public int compareTo(NginxUpstream that) { return this.name.compareTo(that.name); }
     }
 
     @Value
