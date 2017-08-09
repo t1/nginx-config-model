@@ -7,10 +7,10 @@ import java.net.*;
 import java.util.*;
 import java.util.stream.Stream;
 
+import static com.github.t1.nginx.HostPort.*;
 import static java.util.stream.Collectors.*;
 
 @Value
-@Builder
 @Wither
 public class NginxConfig {
     @SneakyThrows(MalformedURLException.class)
@@ -18,9 +18,13 @@ public class NginxConfig {
 
     static NginxConfig readFrom(URL url) { return NginxConfigParser.parse(url); }
 
-    String before, after;
-    List<NginxServer> servers;
-    List<NginxUpstream> upstreams;
+    @NonNull String before, after;
+    @NonNull List<NginxServer> servers;
+    @NonNull List<NginxUpstream> upstreams;
+
+    public static NginxConfig create() {
+        return new NginxConfig("", "", new ArrayList<>(), new ArrayList<>());
+    }
 
 
     @Override public String toString() {
@@ -38,8 +42,10 @@ public class NginxConfig {
         return upstreams().filter(upstream -> upstream.getName().equals(name)).findAny();
     }
 
-    public Optional<NginxServer> server(HostPort hostPort) {
-        return servers.stream().filter(hostPort::matches).findAny();
+    public Optional<NginxServer> server(HostPort hostPort) { return servers().filter(hostPort::matches).findAny(); }
+
+    public Optional<NginxServer> server(String name) {
+        return servers().filter(server -> server.getName().equals(name)).findAny();
     }
 
     public Stream<NginxServer> servers() { return servers.stream(); }
@@ -56,24 +62,33 @@ public class NginxConfig {
         return withUpstreams(list);
     }
 
+    public NginxConfig withServer(NginxServer server) {
+        List<NginxServer> list = new ArrayList<>();
+        list.addAll(servers);
+        list.add(server);
+        list.sort(null);
+        return withServers(list);
+    }
+
 
     /** https://www.nginx.com/resources/admin-guide/load-balancer/ */
     @Value
-    @Builder
     @Wither
     public static class NginxUpstream implements Comparable<NginxUpstream> {
         private static final String PREFIX = "        server ";
         private static final String SUFFIX = ";\n";
 
-        String before, after;
+        @NonNull String before;
+        @NonNull String after;
         @NonNull String name;
         String method;
-        @Singular List<HostPort> servers;
+        List<HostPort> servers;
 
-        @SuppressWarnings({ "unused", "WeakerAccess" })
-        public static class NginxUpstreamBuilder {
-            String before = "", after = "";
+        public static NginxUpstream named(String name) {
+            return new NginxUpstream("", "", name, null, new ArrayList<>());
         }
+
+        @Override public int compareTo(NginxUpstream that) { return this.name.compareTo(that.name); }
 
         @Override public String toString() {
             return "upstream " + name + " {\n"
@@ -99,17 +114,30 @@ public class NginxConfig {
             with.sort(null);
             return withServers(with);
         }
-
-        @Override public int compareTo(NginxUpstream that) { return this.name.compareTo(that.name); }
     }
 
     @Value
     @Wither
-    @Builder
-    public static class NginxServer {
-        String name;
+    public static class NginxServer implements Comparable<NginxServer> {
+        @NonNull String name;
         int listen;
-        @Singular List<NginxServerLocation> locations;
+        @NonNull List<NginxServerLocation> locations;
+
+        public static NginxServer named(String name) {
+            return new NginxServer(name, DEFAULT_HTTP_PORT, new ArrayList<>());
+        }
+
+        @Override public int compareTo(NginxServer that) { return this.name.compareTo(that.name); }
+
+
+        @Override public String toString() {
+            return "server {\n"
+                    + "        server_name " + name + ";\n"
+                    + "        listen " + listen + ";\n"
+                    + locations.stream().map(NginxServerLocation::toString).collect(joining())
+                    + "    }\n";
+        }
+
 
         public Optional<NginxServerLocation> location(String name) {
             return locations().filter(location -> location.getName().equals(name)).findAny();
@@ -124,29 +152,21 @@ public class NginxConfig {
             with.sort(null);
             return withLocations(with);
         }
-
-        @Override public String toString() {
-            return "server {\n"
-                    + "        server_name " + name + ";\n"
-                    + "        listen " + listen + ";\n"
-                    + locations.stream().map(NginxServerLocation::toString).collect(joining())
-                    + "    }\n";
-        }
     }
 
     @Value
     @Wither
-    @Builder
-    public static class NginxServerLocation {
+    public static class NginxServerLocation implements Comparable<NginxServerLocation> {
         @NonNull String before;
         @NonNull String after;
         @NonNull String name;
-        @NonNull URI proxyPass;
+        URI proxyPass;
 
-        @SuppressWarnings("unused")
-        static class NginxServerLocationBuilder {
-            String before = "", after = "";
+        public static NginxServerLocation named(String name) {
+            return new NginxServerLocation("", "", name, null);
         }
+
+        @Override public int compareTo(NginxServerLocation that) { return this.name.compareTo(that.name); }
 
         @Override public String toString() {
             return "        location " + name + " {\n"
