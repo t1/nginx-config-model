@@ -32,14 +32,20 @@ public class NginxConfig {
     }
 
 
+    public Stream<NginxUpstream> upstreams() { return upstreams.stream(); }
+
     public Optional<NginxUpstream> upstream(String name) {
-        return upstreams.stream().filter(upstream -> upstream.getName().equals(name)).findAny();
+        return upstreams().filter(upstream -> upstream.getName().equals(name)).findAny();
+    }
+
+    public Optional<NginxServer> server(HostPort hostPort) {
+        return servers.stream().filter(hostPort::matches).findAny();
     }
 
     public Stream<NginxServer> servers() { return servers.stream(); }
 
     public NginxConfig withoutUpstream(String name) {
-        return withUpstreams(upstreams.stream().filter(upstream -> !upstream.getName().equals(name)).collect(toList()));
+        return withUpstreams(upstreams().filter(upstream -> !upstream.getName().equals(name)).collect(toList()));
     }
 
     public NginxConfig withUpstream(NginxUpstream upstream) {
@@ -62,7 +68,7 @@ public class NginxConfig {
         String before, after;
         @NonNull String name;
         String method;
-        @Singular List<String> servers;
+        @Singular List<HostPort> servers;
 
         @SuppressWarnings({ "unused", "WeakerAccess" })
         public static class NginxUpstreamBuilder {
@@ -74,17 +80,20 @@ public class NginxConfig {
                     + (before.isEmpty() ? "" : "        " + before + "\n")
                     + ((method == null) ? "" : "        " + method + ";\n\n")
                     + ((servers == null) ? ""
-                               : servers.stream().collect(joining(SUFFIX + PREFIX, PREFIX, SUFFIX)))
+                               : servers.stream().map(HostPort::toString)
+                                        .collect(joining(SUFFIX + PREFIX, PREFIX, SUFFIX)))
                     + (after.isEmpty() ? "" : "        " + after + "\n")
                     + "    }\n";
         }
 
-        public NginxUpstream withoutServer(String server) {
+        public Stream<HostPort> servers() { return servers.stream(); }
+
+        public NginxUpstream withoutServer(HostPort server) {
             return withServers(servers.stream().filter(s -> !s.equals(server)).collect(toList()));
         }
 
-        public NginxUpstream withServer(String server) {
-            List<String> with = new ArrayList<>();
+        public NginxUpstream withServer(HostPort server) {
+            List<HostPort> with = new ArrayList<>();
             with.addAll(servers);
             with.add(server);
             with.sort(null);
@@ -95,11 +104,26 @@ public class NginxConfig {
     }
 
     @Value
+    @Wither
     @Builder
     public static class NginxServer {
         String name;
-        String listen;
+        int listen;
         @Singular List<NginxServerLocation> locations;
+
+        public Optional<NginxServerLocation> location(String name) {
+            return locations().filter(location -> location.getName().equals(name)).findAny();
+        }
+
+        public Stream<NginxServerLocation> locations() { return locations.stream(); }
+
+        public NginxServer withLocation(NginxServerLocation location) {
+            List<NginxServerLocation> with = new ArrayList<>();
+            with.addAll(locations);
+            with.add(location);
+            with.sort(null);
+            return withLocations(with);
+        }
 
         @Override public String toString() {
             return "server {\n"
@@ -111,12 +135,13 @@ public class NginxConfig {
     }
 
     @Value
+    @Wither
     @Builder
     public static class NginxServerLocation {
         @NonNull String before;
         @NonNull String after;
         @NonNull String name;
-        @NonNull String pass;
+        @NonNull URI proxyPass;
 
         @SuppressWarnings("unused")
         static class NginxServerLocationBuilder {
@@ -126,9 +151,11 @@ public class NginxConfig {
         @Override public String toString() {
             return "        location " + name + " {\n"
                     + (before.isEmpty() ? "" : "            " + before + "\n")
-                    + "            proxy_pass " + pass + ";\n"
+                    + "            proxy_pass " + proxyPass + ";\n"
                     + (after.isEmpty() ? "" : "            " + after + "\n")
                     + "        }\n";
         }
+
+        public boolean passTo(String upstreamName) { return proxyPass.getHost().equals(upstreamName); }
     }
 }

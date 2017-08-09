@@ -7,7 +7,7 @@ import com.github.t1.nginx.NginxConfig.NginxUpstream.NginxUpstreamBuilder;
 import com.github.t1.nginx.Tokenizer.*;
 
 import java.io.*;
-import java.net.URL;
+import java.net.*;
 import java.util.*;
 
 import static java.nio.charset.StandardCharsets.*;
@@ -99,6 +99,8 @@ class NginxConfigParser {
                 upstreams.add(upstream.upstream.build());
             for (ServerVisitor server : serverVisitors)
                 servers.add(server.server.build());
+            if (current == null)
+                current = after;
             super.endBlock();
             return new RootVisitor();
         }
@@ -116,7 +118,7 @@ class NginxConfigParser {
                 upstream.method("least_conn");
             } else if ("server".equals(token)) {
                 return new ValueVisitor(this, value -> {
-                    upstream.server(value);
+                    upstream.server(HostPort.valueOf(value));
                     toAfter();
                 });
             } else {
@@ -147,7 +149,7 @@ class NginxConfigParser {
             if ("server_name".equals(token)) {
                 return new ValueVisitor(this, value -> server.name(value));
             } else if ("listen".equals(token)) {
-                return new ValueVisitor(this, value -> server.listen(value));
+                return new ValueVisitor(this, value -> server.listen(Integer.parseInt(value)));
             } else if ("location".equals(token)) {
                 return new NamedBlockNameVisitor(new LocationVisitor(this, server));
             } else {
@@ -171,7 +173,7 @@ class NginxConfigParser {
 
         @Override public Visitor visitToken(String token) {
             if ("proxy_pass".equals(token)) {
-                return new ValueVisitor(this, value -> location.pass(value));
+                return new ValueVisitor(this, value -> location.proxyPass(URI.create(value)));
             } else {
                 toAfter();
                 append(token);
