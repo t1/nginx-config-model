@@ -62,6 +62,10 @@ public class NginxConfig {
         return withUpstreams(list);
     }
 
+    public NginxConfig withoutServer(String name) {
+        return withServers(servers().filter(server -> !server.getName().equals(name)).collect(toList()));
+    }
+
     public NginxConfig withServer(NginxServer server) {
         List<NginxServer> list = new ArrayList<>();
         list.addAll(servers);
@@ -143,7 +147,7 @@ public class NginxConfig {
             return locations().filter(location -> location.getName().equals(name)).findAny();
         }
 
-        public Stream<NginxServerLocation> locations() { return locations.stream(); }
+        private Stream<NginxServerLocation> locations() { return locations.stream(); }
 
         public NginxServer withLocation(NginxServerLocation location) {
             List<NginxServerLocation> with = new ArrayList<>();
@@ -151,6 +155,11 @@ public class NginxConfig {
             with.add(location);
             with.sort(null);
             return withLocations(with);
+        }
+
+        public NginxServer withoutLocation(NginxUpstream upstream) {
+            return withLocations(
+                    locations().filter(location -> !location.passTo(upstream.getName())).collect(toList()));
         }
     }
 
@@ -176,6 +185,6 @@ public class NginxConfig {
                     + "        }\n";
         }
 
-        public boolean passTo(String upstreamName) { return proxyPass.getHost().equals(upstreamName); }
+        boolean passTo(String upstreamName) { return proxyPass.getHost().equals(upstreamName); }
     }
 }
