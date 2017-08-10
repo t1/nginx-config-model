@@ -4,23 +4,13 @@ import com.github.t1.nginx.NginxConfig.*;
 import com.github.t1.nginx.Tokenizer.*;
 import lombok.Setter;
 
-import java.io.*;
-import java.net.*;
+import java.io.Reader;
+import java.net.URI;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static java.nio.charset.StandardCharsets.*;
-
 class NginxConfigParser {
-    static NginxConfig parse(URL url) {
-        try (InputStream inputStream = url.openStream()) {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, UTF_8));
-            NginxConfigParser parser = new NginxConfigParser(reader);
-            return parser.build();
-        } catch (IOException e) {
-            throw new RuntimeException("can't load config stream from '" + url + "'");
-        }
-    }
+    static NginxConfig parse(Reader reader) { return new NginxConfigParser(reader).build(); }
 
     private StringBuilder before = new StringBuilder();
     private StringBuilder after = new StringBuilder();
@@ -194,9 +184,9 @@ class NginxConfigParser {
 
     private NginxConfig build() {
         return NginxConfig.create()
-                .withBefore(before.toString())
-                .withAfter(after.toString())
-                .withUpstreams(upstreams)
-                .withServers(servers);
+                          .withBefore(before.toString())
+                          .withAfter(after.toString())
+                          .withUpstreams(upstreams)
+                          .withServers(servers);
     }
 }

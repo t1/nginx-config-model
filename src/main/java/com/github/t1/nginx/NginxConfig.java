@@ -3,11 +3,13 @@ package com.github.t1.nginx;
 import lombok.*;
 import lombok.experimental.Wither;
 
+import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.stream.Stream;
 
 import static com.github.t1.nginx.HostPort.*;
+import static java.nio.charset.StandardCharsets.*;
 import static java.util.stream.Collectors.*;
 
 @Value
@@ -16,7 +18,16 @@ public class NginxConfig {
     @SneakyThrows(MalformedURLException.class)
     public static NginxConfig readFrom(URI uri) { return readFrom(uri.toURL()); }
 
-    static NginxConfig readFrom(URL url) { return NginxConfigParser.parse(url); }
+    public static NginxConfig readFrom(Reader reader) { return NginxConfigParser.parse(reader); }
+
+    static NginxConfig readFrom(URL url) {
+        try (InputStream inputStream = url.openStream()) {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, UTF_8));
+            return NginxConfigParser.parse(reader);
+        } catch (IOException e) {
+            throw new RuntimeException("can't load config stream from '" + url + "'");
+        }
+    }
 
     @NonNull String before, after;
     @NonNull List<NginxServer> servers;
