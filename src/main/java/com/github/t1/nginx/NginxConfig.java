@@ -25,7 +25,7 @@ public class NginxConfig {
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, UTF_8));
             return NginxConfigParser.parse(reader);
         } catch (IOException e) {
-            throw new RuntimeException("can't load config stream from '" + url + "'");
+            throw new RuntimeException("can't load config stream from '" + url + "'", e);
         }
     }
 
