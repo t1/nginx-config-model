@@ -137,7 +137,8 @@ class NginxConfigParser {
             if ("server_name".equals(token)) {
                 return new ValueVisitor(this, value -> server = NginxServer.named(value));
             } else if ("listen".equals(token)) {
-                return new ValueVisitor(this, value -> server = server.withListen(Integer.parseInt(value)));
+                return new ValueVisitor(this,
+                        value -> server = (server == null) ? null : server.withListen(Integer.parseInt(value)));
             } else if ("location".equals(token)) {
                 return new NamedBlockNameVisitor(new LocationVisitor(this, server, this::setServer));
             } else {
