@@ -16,6 +16,25 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
+    <scm>
+        <developerConnection>scm:git:https://github.com/t1/nginx-config-model</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <distributionManagement>
+        <repository>
+            <id>bintray-t1-javaee-helpers</id>
+            <name>t1-javaee-helpers-nginx-config-model</name>
+            <url>https://api.bintray.com/maven/t1/javaee-helpers/nginx-config-model/;publish=1</url>
+        </repository>
+    </distributionManagement>
+
     <build>
         <finalName>${project.artifactId}</finalName>
         <testResources>
