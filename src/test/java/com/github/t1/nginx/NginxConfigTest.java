@@ -1,14 +1,18 @@
 package com.github.t1.nginx;
 
-import com.github.t1.nginx.NginxConfig.*;
-import org.junit.Test;
+import com.github.t1.nginx.NginxConfig.NginxServer;
+import com.github.t1.nginx.NginxConfig.NginxServerLocation;
+import com.github.t1.nginx.NginxConfig.NginxUpstream;
+import org.junit.jupiter.api.Test;
 
-import java.net.*;
+import java.net.URI;
+import java.net.URL;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.contentOf;
 
-public class NginxConfigTest {
+class NginxConfigTest {
     private static final NginxServer WORKER_LB = NginxServer
             .named("worker")
             .withLocation(NginxServerLocation.named("/").withProxyPass(URI.create("http://backend"))
@@ -31,20 +35,17 @@ public class NginxConfigTest {
             .withServer(HostPort.valueOf("localhost:8280"))
             .withAfter("# lb-after-comment");
 
-    @Test
-    public void shouldRetainOriginalToString() throws Exception {
+    @Test void shouldRetainOriginalToString() {
         assertThat(config.toString()).isEqualTo(contentOf(RESOURCE));
     }
 
-    @Test
-    public void shouldProvideServers() throws Exception {
+    @Test void shouldProvideServers() {
         List<NginxServer> servers = config.getServers();
 
         assertThat(servers).containsExactly(WORKER_LB, WORKER_01, WORKER_02);
     }
 
-    @Test
-    public void shouldProvideUpstreams() throws Exception {
+    @Test void shouldProvideUpstreams() {
         List<NginxUpstream> upstreams = config.getUpstreams();
 
         assertThat(upstreams).containsExactly(UPSTREAM);
