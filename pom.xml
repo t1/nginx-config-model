@@ -15,7 +15,7 @@
     </properties>
 
     <scm>
-        <developerConnection>scm:git:git@github.com:t1/nginx-config-model.git</developerConnection>
+        <developerConnection>scm:git:https://github.com/t1/nginx-config-model</developerConnection>
         <tag>HEAD</tag>
     </scm>
     <licenses>
