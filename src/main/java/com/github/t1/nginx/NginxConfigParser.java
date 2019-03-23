@@ -1,12 +1,18 @@
 package com.github.t1.nginx;
 
-import com.github.t1.nginx.NginxConfig.*;
-import com.github.t1.nginx.Tokenizer.*;
+import com.github.t1.nginx.NginxConfig.NginxServer;
+import com.github.t1.nginx.NginxConfig.NginxServerLocation;
+import com.github.t1.nginx.NginxConfig.NginxUpstream;
+import com.github.t1.nginx.Tokenizer.NamedBlockNameVisitor;
+import com.github.t1.nginx.Tokenizer.NamedBlockVisitor;
+import com.github.t1.nginx.Tokenizer.ValueVisitor;
+import com.github.t1.nginx.Tokenizer.Visitor;
 import lombok.Setter;
 
 import java.io.Reader;
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 class NginxConfigParser {
@@ -137,13 +143,20 @@ class NginxConfigParser {
             if ("server_name".equals(token)) {
                 return new ValueVisitor(this, value -> server = NginxServer.named(value));
             } else if ("listen".equals(token)) {
-                return new ValueVisitor(this,
-                        value -> server = (server == null) ? null : server.withListen(Integer.parseInt(value)));
+                return new ValueVisitor(this, value -> server = readListen(value));
             } else if ("location".equals(token)) {
                 return new NamedBlockNameVisitor(new LocationVisitor(this, server, this::setServer));
             } else {
                 return super.visitToken(token);
             }
+        }
+
+        private NginxServer readListen(String value) {
+            if (server == null)
+                return null;
+            if (value.contains(":"))
+                value = value.substring(value.indexOf(':') + 1);
+            return server.withListen(Integer.parseInt(value));
         }
 
         @Override public Visitor endBlock() { return next; }
@@ -185,9 +198,9 @@ class NginxConfigParser {
 
     private NginxConfig build() {
         return NginxConfig.create()
-                          .withBefore(before.toString())
-                          .withAfter(after.toString())
-                          .withUpstreams(upstreams)
-                          .withServers(servers);
+            .withBefore(before.toString())
+            .withAfter(after.toString())
+            .withUpstreams(upstreams)
+            .withServers(servers);
     }
 }
