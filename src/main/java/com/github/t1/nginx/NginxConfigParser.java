@@ -113,7 +113,7 @@ class NginxConfigParser {
                 upstream = upstream.withMethod("least_conn");
             } else if ("server".equals(token)) {
                 return new ValueVisitor(this, value -> {
-                    upstream = upstream.withServer(HostPort.valueOf(value));
+                    upstream = upstream.withHostPort(HostPort.valueOf(value));
                     toAfter();
                 });
             } else {
@@ -199,8 +199,12 @@ class NginxConfigParser {
     private NginxConfig build() {
         return NginxConfig.create()
             .withBefore(before.toString())
-            .withAfter(after.toString())
             .withUpstreams(upstreams)
-            .withServers(servers);
+            .withServers(servers)
+            .withAfter(trimLastNl(after.toString()));
+    }
+
+    private static String trimLastNl(String string) {
+        return (string.endsWith("\n")) ? string.substring(0, string.length() - 1) : string;
     }
 }

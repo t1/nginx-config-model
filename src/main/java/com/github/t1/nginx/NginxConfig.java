@@ -1,16 +1,31 @@
 package com.github.t1.nginx;
 
-import lombok.*;
+import lombok.NonNull;
+import lombok.SneakyThrows;
+import lombok.Value;
 import lombok.experimental.Wither;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static com.github.t1.nginx.HostPort.*;
-import static java.nio.charset.StandardCharsets.*;
-import static java.util.stream.Collectors.*;
+import static com.github.t1.nginx.HostPort.DEFAULT_HTTP_PORT;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 
 @Value
 @Wither
@@ -34,7 +49,11 @@ public class NginxConfig {
     @NonNull List<NginxUpstream> upstreams;
 
     public static NginxConfig create() {
-        return new NginxConfig("", "", new ArrayList<>(), new ArrayList<>());
+        return new NginxConfig("http {\n    ", "}", new ArrayList<>(), new ArrayList<>());
+    }
+
+    @SneakyThrows(IOException.class) public void writeTo(Path path) {
+        Files.write(path, this.toString().getBytes());
     }
 
 
@@ -65,10 +84,22 @@ public class NginxConfig {
         return withUpstreams(upstreams().filter(upstream -> !upstream.getName().equals(name)).collect(toList()));
     }
 
+    public NginxConfig withUpstream(String name, Function<NginxUpstream, NginxUpstream> function) {
+        NginxUpstream oldUpstream = upstream(name).orElseThrow(() -> new IllegalArgumentException("upstream not found " + name));
+        NginxUpstream newUpstream = function.apply(oldUpstream);
+        return withUpstream(list -> {
+            list.remove(oldUpstream);
+            list.add(newUpstream);
+        });
+    }
+
     public NginxConfig withUpstream(NginxUpstream upstream) {
-        List<NginxUpstream> list = new ArrayList<>();
-        list.addAll(upstreams);
-        list.add(upstream);
+        return withUpstream(list -> list.add(upstream));
+    }
+
+    private NginxConfig withUpstream(Consumer<List<NginxUpstream>> action) {
+        List<NginxUpstream> list = new ArrayList<>(upstreams);
+        action.accept(list);
         list.sort(null);
         return withUpstreams(list);
     }
@@ -78,8 +109,7 @@ public class NginxConfig {
     }
 
     public NginxConfig withServer(NginxServer server) {
-        List<NginxServer> list = new ArrayList<>();
-        list.addAll(servers);
+        List<NginxServer> list = new ArrayList<>(servers);
         list.add(server);
         list.sort(null);
         return withServers(list);
@@ -97,7 +127,7 @@ public class NginxConfig {
         @NonNull String after;
         @NonNull String name;
         String method;
-        List<HostPort> servers;
+        List<HostPort> hostPorts;
 
         public static NginxUpstream named(String name) {
             return new NginxUpstream("", "", name, null, new ArrayList<>());
@@ -107,27 +137,50 @@ public class NginxConfig {
 
         @Override public String toString() {
             return "upstream " + name + " {\n"
-                    + (before.isEmpty() ? "" : "        " + before + "\n")
-                    + ((method == null) ? "" : "        " + method + ";\n\n")
-                    + ((servers == null) ? ""
-                               : servers.stream().map(HostPort::toString)
-                                        .collect(joining(SUFFIX + PREFIX, PREFIX, SUFFIX)))
-                    + (after.isEmpty() ? "" : "        " + after + "\n")
-                    + "    }\n";
+                + (before.isEmpty() ? "" : "        " + before + "\n")
+                + ((method == null) ? "" : "        " + method + ";\n\n")
+                + ((hostPorts == null) ? ""
+                : hostPorts.stream().map(HostPort::toString)
+                .collect(joining(SUFFIX + PREFIX, PREFIX, SUFFIX)))
+                + (after.isEmpty() ? "" : "        " + after + "\n")
+                + "    }\n";
         }
 
-        public Stream<HostPort> servers() { return servers.stream(); }
+        public Stream<HostPort> hostPorts() { return hostPorts.stream(); }
 
-        public NginxUpstream withoutServer(HostPort server) {
-            return withServers(servers.stream().filter(s -> !s.equals(server)).collect(toList()));
+        public NginxUpstream withoutHostPort(HostPort hostPort) {
+            return withHostPorts(hostPorts.stream().filter(s -> !s.equals(hostPort)).collect(toList()));
         }
 
-        public NginxUpstream withServer(HostPort server) {
-            List<HostPort> with = new ArrayList<>();
-            with.addAll(servers);
-            with.add(server);
-            with.sort(null);
-            return withServers(with);
+        public NginxUpstream withHostPort(HostPort hostPort) {
+            return withHostPort(list -> list.add(hostPort));
+        }
+
+        public NginxUpstream withHostPort(int index, HostPort hostPort) {
+            return withHostPort(index, old -> hostPort);
+        }
+
+        public NginxUpstream withHostPortses(Function<HostPort, HostPort> function) {
+            return withHostPorts(hostPorts().map(function).collect(toList()));
+        }
+
+        private NginxUpstream withHostPort(int index, Function<HostPort, HostPort> function) {
+            HostPort oldHostPort = hostPorts.get(index);
+            if (oldHostPort == null)
+                throw new IllegalArgumentException("upstream not found " + name);
+            HostPort newHostPort = function.apply(oldHostPort);
+            return withHostPort(list -> {
+                list.remove(oldHostPort);
+                list.add(newHostPort);
+                list.sort(null);
+            });
+        }
+
+        private NginxUpstream withHostPort(Consumer<List<HostPort>> consumer) {
+            List<HostPort> list = new ArrayList<>(hostPorts);
+            consumer.accept(list);
+            list.sort(null);
+            return withHostPorts(list);
         }
     }
 
@@ -147,10 +200,10 @@ public class NginxConfig {
 
         @Override public String toString() {
             return "server {\n"
-                    + "        server_name " + name + ";\n"
-                    + "        listen " + listen + ";\n"
-                    + locations.stream().map(NginxServerLocation::toString).collect(joining())
-                    + "    }\n";
+                + "        server_name " + name + ";\n"
+                + "        listen " + listen + ";\n"
+                + locations.stream().map(NginxServerLocation::toString).collect(joining())
+                + "    }\n";
         }
 
 
@@ -161,8 +214,7 @@ public class NginxConfig {
         private Stream<NginxServerLocation> locations() { return locations.stream(); }
 
         public NginxServer withLocation(NginxServerLocation location) {
-            List<NginxServerLocation> with = new ArrayList<>();
-            with.addAll(locations);
+            List<NginxServerLocation> with = new ArrayList<>(locations);
             with.add(location);
             with.sort(null);
             return withLocations(with);
@@ -170,7 +222,7 @@ public class NginxConfig {
 
         public NginxServer withoutLocation(NginxUpstream upstream) {
             return withLocations(
-                    locations().filter(location -> !location.passTo(upstream.getName())).collect(toList()));
+                locations().filter(location -> !location.passTo(upstream.getName())).collect(toList()));
         }
     }
 
@@ -190,10 +242,10 @@ public class NginxConfig {
 
         @Override public String toString() {
             return "        location " + name + " {\n"
-                    + (before.isEmpty() ? "" : "            " + before + "\n")
-                    + "            proxy_pass " + proxyPass + ";\n"
-                    + (after.isEmpty() ? "" : "            " + after + "\n")
-                    + "        }\n";
+                + (before.isEmpty() ? "" : "            " + before + "\n")
+                + "            proxy_pass " + proxyPass + ";\n"
+                + (after.isEmpty() ? "" : "            " + after + "\n")
+                + "        }\n";
         }
 
         boolean passTo(String upstreamName) { return proxyPass.getHost().equals(upstreamName); }

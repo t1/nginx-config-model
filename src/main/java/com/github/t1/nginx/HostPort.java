@@ -3,18 +3,20 @@ package com.github.t1.nginx;
 import com.github.t1.nginx.NginxConfig.NginxServer;
 import lombok.NonNull;
 import lombok.Value;
+import lombok.experimental.Wither;
 
 import java.net.URI;
 import java.util.Comparator;
 
 @Value
+@Wither
 public class HostPort implements Comparable<HostPort> {
     public static final int DEFAULT_HTTP_PORT = 80;
 
     String host;
     int port;
 
-    static HostPort valueOf(String value) {
+    public static HostPort valueOf(String value) {
         String[] split = value.split(":", 2);
         return new HostPort(split[0], (split.length < 2) ? DEFAULT_HTTP_PORT : Integer.parseInt(split[1]));
     }

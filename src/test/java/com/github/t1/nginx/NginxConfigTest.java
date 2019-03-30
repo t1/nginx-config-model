@@ -31,8 +31,8 @@ class NginxConfigTest {
     private static final NginxUpstream UPSTREAM = NginxUpstream
             .named("backend").withMethod("least_conn")
             .withBefore("# lb-before-comment")
-            .withServer(HostPort.valueOf("localhost:8180"))
-            .withServer(HostPort.valueOf("localhost:8280"))
+            .withHostPort(HostPort.valueOf("localhost:8180"))
+            .withHostPort(HostPort.valueOf("localhost:8280"))
             .withAfter("# lb-after-comment");
 
     @Test void shouldRetainOriginalToString() {
