@@ -160,7 +160,7 @@ public class NginxConfig {
             return withHostPort(index, old -> hostPort);
         }
 
-        public NginxUpstream withHostPortses(Function<HostPort, HostPort> function) {
+        public NginxUpstream with(Function<HostPort, HostPort> function) {
             return withHostPorts(hostPorts().map(function).collect(toList()));
         }
 
