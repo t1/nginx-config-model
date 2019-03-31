@@ -1,9 +1,10 @@
 package com.github.t1.nginx;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import lombok.Value;
-import lombok.experimental.Wither;
+import lombok.experimental.Accessors;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -18,17 +19,14 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.github.t1.nginx.HostPort.DEFAULT_HTTP_PORT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
 
-@Value
-@Wither
+@Data
+@Accessors(chain = true)
 public class NginxConfig {
     @SneakyThrows(MalformedURLException.class)
     public static NginxConfig readFrom(URI uri) { return readFrom(uri.toURL()); }
@@ -44,9 +42,9 @@ public class NginxConfig {
         }
     }
 
-    @NonNull String before, after;
-    @NonNull List<NginxServer> servers;
-    @NonNull List<NginxUpstream> upstreams;
+    @NonNull private String before, after;
+    @NonNull private List<NginxServer> servers;
+    @NonNull private List<NginxUpstream> upstreams;
 
     public static NginxConfig create() {
         return new NginxConfig("http {\n    ", "}", new ArrayList<>(), new ArrayList<>());
@@ -78,56 +76,43 @@ public class NginxConfig {
         return servers().filter(server -> server.getName().equals(name)).findAny();
     }
 
-    public Stream<NginxServer> servers() { return servers.stream(); }
+    private Stream<NginxServer> servers() { return servers.stream(); }
 
-    public NginxConfig withoutUpstream(String name) {
-        return withUpstreams(upstreams().filter(upstream -> !upstream.getName().equals(name)).collect(toList()));
+    public NginxConfig removeUpstream(String name) {
+        upstreams.removeIf(upstream -> upstream.getName().equals(name));
+        return this;
     }
 
-    public NginxConfig withUpstream(String name, Function<NginxUpstream, NginxUpstream> function) {
-        NginxUpstream oldUpstream = upstream(name).orElseThrow(() -> new IllegalArgumentException("upstream not found " + name));
-        NginxUpstream newUpstream = function.apply(oldUpstream);
-        return withUpstream(list -> {
-            list.remove(oldUpstream);
-            list.add(newUpstream);
-        });
+    public NginxConfig addUpstream(NginxUpstream upstream) {
+        upstreams.add(upstream);
+        upstreams.sort(null);
+        return this;
     }
 
-    public NginxConfig withUpstream(NginxUpstream upstream) {
-        return withUpstream(list -> list.add(upstream));
+    public NginxConfig removeServer(String name) {
+        servers.removeIf(server -> server.getName().equals(name));
+        return this;
     }
 
-    private NginxConfig withUpstream(Consumer<List<NginxUpstream>> action) {
-        List<NginxUpstream> list = new ArrayList<>(upstreams);
-        action.accept(list);
-        list.sort(null);
-        return withUpstreams(list);
-    }
-
-    public NginxConfig withoutServer(String name) {
-        return withServers(servers().filter(server -> !server.getName().equals(name)).collect(toList()));
-    }
-
-    public NginxConfig withServer(NginxServer server) {
-        List<NginxServer> list = new ArrayList<>(servers);
-        list.add(server);
-        list.sort(null);
-        return withServers(list);
+    public NginxConfig addServer(NginxServer server) {
+        servers.add(server);
+        servers.sort(null);
+        return this;
     }
 
 
     /** https://www.nginx.com/resources/admin-guide/load-balancer/ */
-    @Value
-    @Wither
+    @Data
+    @AllArgsConstructor
     public static class NginxUpstream implements Comparable<NginxUpstream> {
         private static final String PREFIX = "        server ";
         private static final String SUFFIX = ";\n";
 
-        @NonNull String before;
-        @NonNull String after;
-        @NonNull String name;
-        String method;
-        List<HostPort> hostPorts;
+        @NonNull private String before;
+        @NonNull private String after;
+        @NonNull private String name;
+        private String method;
+        private List<HostPort> hostPorts;
 
         public static NginxUpstream named(String name) {
             return new NginxUpstream("", "", name, null, new ArrayList<>());
@@ -148,48 +133,32 @@ public class NginxConfig {
 
         public Stream<HostPort> hostPorts() { return hostPorts.stream(); }
 
-        public NginxUpstream withoutHostPort(HostPort hostPort) {
-            return withHostPorts(hostPorts.stream().filter(s -> !s.equals(hostPort)).collect(toList()));
+        public NginxUpstream removeHostPort(HostPort hostPort) {
+            hostPorts.removeIf(s -> s.equals(hostPort));
+            return this;
         }
 
-        public NginxUpstream withHostPort(HostPort hostPort) {
-            return withHostPort(list -> list.add(hostPort));
+        public NginxUpstream addHostPort(HostPort hostPort) {
+            hostPorts.add(hostPort);
+            hostPorts.sort(null);
+            return this;
         }
 
-        public NginxUpstream withHostPort(int index, HostPort hostPort) {
-            return withHostPort(index, old -> hostPort);
-        }
-
-        public NginxUpstream map(Function<HostPort, HostPort> function) {
-            return withHostPorts(hostPorts().map(function).collect(toList()));
-        }
-
-        private NginxUpstream withHostPort(int index, Function<HostPort, HostPort> function) {
-            HostPort oldHostPort = hostPorts.get(index);
-            if (oldHostPort == null)
-                throw new IllegalArgumentException("upstream not found " + name);
-            HostPort newHostPort = function.apply(oldHostPort);
-            return withHostPort(list -> {
-                list.remove(oldHostPort);
-                list.add(newHostPort);
-                list.sort(null);
-            });
-        }
-
-        private NginxUpstream withHostPort(Consumer<List<HostPort>> consumer) {
-            List<HostPort> list = new ArrayList<>(hostPorts);
-            consumer.accept(list);
-            list.sort(null);
-            return withHostPorts(list);
+        public NginxUpstream setPort(HostPort hostPort, int port) {
+            int index = hostPorts.indexOf(hostPort);
+            if (index < 0) throw new IllegalArgumentException("can't find "+hostPort+" in "+this);
+            hostPorts.set(index, hostPort.withPort(port));
+            hostPorts.sort(null);
+            return this;
         }
     }
 
-    @Value
-    @Wither
+    @Data
+    @AllArgsConstructor
     public static class NginxServer implements Comparable<NginxServer> {
-        @NonNull String name;
-        int listen;
-        @NonNull List<NginxServerLocation> locations;
+        @NonNull private String name;
+        private int listen;
+        @NonNull private List<NginxServerLocation> locations;
 
         public static NginxServer named(String name) {
             return new NginxServer(name, DEFAULT_HTTP_PORT, new ArrayList<>());
@@ -213,26 +182,20 @@ public class NginxConfig {
 
         private Stream<NginxServerLocation> locations() { return locations.stream(); }
 
-        public NginxServer withLocation(NginxServerLocation location) {
-            List<NginxServerLocation> with = new ArrayList<>(locations);
-            with.add(location);
-            with.sort(null);
-            return withLocations(with);
-        }
-
-        public NginxServer withoutLocation(NginxUpstream upstream) {
-            return withLocations(
-                locations().filter(location -> !location.passTo(upstream.getName())).collect(toList()));
+        public NginxServer addLocation(NginxServerLocation location) {
+            locations.add(location);
+            locations.sort(null);
+            return this;
         }
     }
 
-    @Value
-    @Wither
+    @Data
+    @AllArgsConstructor
     public static class NginxServerLocation implements Comparable<NginxServerLocation> {
-        @NonNull String before;
-        @NonNull String after;
-        @NonNull String name;
-        URI proxyPass;
+        @NonNull private String before;
+        @NonNull private String after;
+        @NonNull private String name;
+        private URI proxyPass;
 
         public static NginxServerLocation named(String name) {
             return new NginxServerLocation("", "", name, null);
@@ -247,7 +210,5 @@ public class NginxConfig {
                 + (after.isEmpty() ? "" : "            " + after + "\n")
                 + "        }\n";
         }
-
-        boolean passTo(String upstreamName) { return proxyPass.getHost().equals(upstreamName); }
     }
 }

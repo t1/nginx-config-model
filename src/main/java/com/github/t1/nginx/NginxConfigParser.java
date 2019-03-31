@@ -110,10 +110,10 @@ class NginxConfigParser {
 
         @Override public Visitor visitToken(String token) {
             if ("least_conn;".equals(token)) {
-                upstream = upstream.withMethod("least_conn");
+                upstream.setMethod("least_conn");
             } else if ("server".equals(token)) {
                 return new ValueVisitor(this, value -> {
-                    upstream = upstream.withHostPort(HostPort.valueOf(value));
+                    upstream.addHostPort(HostPort.valueOf(value));
                     toAfter();
                 });
             } else {
@@ -128,7 +128,7 @@ class NginxConfigParser {
         }
 
         @Override public Visitor endBlock() {
-            upstream = upstream.withBefore(before()).withAfter(after());
+            upstream.setBefore(before()).setAfter(after());
             return next();
         }
     }
@@ -156,7 +156,7 @@ class NginxConfigParser {
                 return null;
             if (value.contains(":"))
                 value = value.substring(value.indexOf(':') + 1);
-            return server.withListen(Integer.parseInt(value));
+            return server.setListen(Integer.parseInt(value));
         }
 
         @Override public Visitor endBlock() { return next; }
@@ -177,7 +177,7 @@ class NginxConfigParser {
 
         @Override public Visitor visitToken(String token) {
             if ("proxy_pass".equals(token)) {
-                return new ValueVisitor(this, value -> location = location.withProxyPass(URI.create(value)));
+                return new ValueVisitor(this, value -> location.setProxyPass(URI.create(value)));
             } else {
                 toAfter();
                 append(token);
@@ -191,17 +191,17 @@ class NginxConfigParser {
         }
 
         @Override public Visitor endBlock() {
-            result.accept(server.withLocation(location.withBefore(before()).withAfter(after())));
+            result.accept(server.addLocation(location.setBefore(before()).setAfter(after())));
             return next();
         }
     }
 
     private NginxConfig build() {
         return NginxConfig.create()
-            .withBefore(before.toString())
-            .withUpstreams(upstreams)
-            .withServers(servers)
-            .withAfter(trimLastNl(after.toString()));
+            .setBefore(before.toString())
+            .setUpstreams(upstreams)
+            .setServers(servers)
+            .setAfter(trimLastNl(after.toString()));
     }
 
     private static String trimLastNl(String string) {
