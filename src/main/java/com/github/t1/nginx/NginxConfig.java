@@ -72,11 +72,7 @@ public class NginxConfig {
 
     public Optional<NginxServer> server(HostPort hostPort) { return servers().filter(hostPort::matches).findAny(); }
 
-    public Optional<NginxServer> server(String name) {
-        return servers().filter(server -> server.getName().equals(name)).findAny();
-    }
-
-    private Stream<NginxServer> servers() { return servers.stream(); }
+    public Stream<NginxServer> servers() { return servers.stream(); }
 
     public NginxConfig removeUpstream(String name) {
         upstreams.removeIf(upstream -> upstream.getName().equals(name));
@@ -89,9 +85,8 @@ public class NginxConfig {
         return this;
     }
 
-    public NginxConfig removeServer(String name) {
-        servers.removeIf(server -> server.getName().equals(name));
-        return this;
+    public void removeServer(HostPort hostPort) {
+        servers.removeIf(hostPort::matches);
     }
 
     public NginxConfig addServer(NginxServer server) {
@@ -133,9 +128,16 @@ public class NginxConfig {
 
         public Stream<HostPort> hostPorts() { return hostPorts.stream(); }
 
-        public NginxUpstream removeHostPort(HostPort hostPort) {
-            hostPorts.removeIf(s -> s.equals(hostPort));
-            return this;
+        public boolean hasHost(String host) {
+            return hostPorts.stream().anyMatch(hostPort -> hostPort.getHost().equals(host));
+        }
+
+        public void removeHostPort(HostPort hostPort) {
+            hostPorts.removeIf(hostPort::equals);
+        }
+
+        public void removeHost(String host) {
+            hostPorts.removeIf(hostPort -> hostPort.getHost().equals(host));
         }
 
         public NginxUpstream addHostPort(HostPort hostPort) {
@@ -144,12 +146,12 @@ public class NginxConfig {
             return this;
         }
 
-        public NginxUpstream setPort(HostPort hostPort, int port) {
+        public void setPort(HostPort hostPort, int port) {
             int index = hostPorts.indexOf(hostPort);
-            if (index < 0) throw new IllegalArgumentException("can't find "+hostPort+" in "+this);
+            if (index < 0)
+                throw new IllegalArgumentException("can't find " + hostPort + " in " + this);
             hostPorts.set(index, hostPort.withPort(port));
             hostPorts.sort(null);
-            return this;
         }
     }
 
