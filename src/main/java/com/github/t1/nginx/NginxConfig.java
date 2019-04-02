@@ -74,9 +74,8 @@ public class NginxConfig {
 
     public Stream<NginxServer> servers() { return servers.stream(); }
 
-    public NginxConfig removeUpstream(String name) {
+    public void removeUpstream(String name) {
         upstreams.removeIf(upstream -> upstream.getName().equals(name));
-        return this;
     }
 
     public NginxConfig addUpstream(NginxUpstream upstream) {
@@ -141,6 +140,7 @@ public class NginxConfig {
         }
 
         public NginxUpstream addHostPort(HostPort hostPort) {
+            removeHost(hostPort.getHost());
             hostPorts.add(hostPort);
             hostPorts.sort(null);
             return this;
