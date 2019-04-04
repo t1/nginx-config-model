@@ -70,9 +70,9 @@ public class NginxConfig {
         return upstreams().filter(upstream -> upstream.getName().equals(name)).findAny();
     }
 
-    public Optional<NginxServer> server(HostPort hostPort) { return servers().filter(hostPort::matches).findAny(); }
-
-    public Stream<NginxServer> servers() { return servers.stream(); }
+    public Optional<NginxServer> server(String name, int listen) {
+        return servers.stream().filter(server -> server.getName().equals(name) && server.listen == listen).findAny();
+    }
 
     public void removeUpstream(String name) {
         upstreams.removeIf(upstream -> upstream.getName().equals(name));
