@@ -128,7 +128,7 @@ public class NginxConfig {
         public Stream<HostPort> hostPorts() { return hostPorts.stream(); }
 
         public boolean hasHost(String host) {
-            return hostPorts.stream().anyMatch(hostPort -> hostPort.getHost().equals(host));
+            return hostPorts().anyMatch(hostPort -> hostPort.getHost().equals(host));
         }
 
         public void removeHostPort(HostPort hostPort) {
@@ -157,6 +157,14 @@ public class NginxConfig {
                 throw new IllegalArgumentException("can't find " + hostPort + " in " + this);
             hostPorts.set(index, hostPort.withPort(port));
             hostPorts.sort(null);
+        }
+
+        public int port(String host) {
+            return hostPorts()
+                .filter(hostPort -> hostPort.getHost().equals(host))
+                .findAny()
+                .map(HostPort::getPort)
+                .orElseThrow(() -> new IllegalStateException("no server for " + host + " in upstream " + name));
         }
     }
 
