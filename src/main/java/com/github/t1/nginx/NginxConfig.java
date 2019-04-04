@@ -47,7 +47,7 @@ public class NginxConfig {
     @NonNull private List<NginxUpstream> upstreams;
 
     public static NginxConfig create() {
-        return new NginxConfig("http {\n    ", "}", new ArrayList<>(), new ArrayList<>());
+        return new NginxConfig("http {\n    ", "}\n", new ArrayList<>(), new ArrayList<>());
     }
 
     @SneakyThrows(IOException.class) public void writeTo(Path path) {
@@ -140,9 +140,14 @@ public class NginxConfig {
         }
 
         public NginxUpstream addHostPort(HostPort hostPort) {
-            removeHost(hostPort.getHost());
             hostPorts.add(hostPort);
             hostPorts.sort(null);
+            return this;
+        }
+
+        public NginxUpstream updateHostPort(HostPort hostPort) {
+            removeHost(hostPort.getHost());
+            addHostPort(hostPort);
             return this;
         }
 
