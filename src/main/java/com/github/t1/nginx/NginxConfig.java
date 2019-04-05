@@ -143,10 +143,6 @@ public class NginxConfig {
             return hostPorts().anyMatch(hostPort -> hostPort.getHost().equals(host));
         }
 
-        public void removeHostPort(HostPort hostPort) {
-            hostPorts.removeIf(hostPort::equals);
-        }
-
         public void removeHost(String host) {
             hostPorts.removeIf(hostPort -> hostPort.getHost().equals(host));
         }
