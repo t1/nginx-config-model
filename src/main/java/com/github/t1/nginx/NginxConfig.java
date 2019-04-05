@@ -71,7 +71,13 @@ public class NginxConfig {
     }
 
     public Optional<NginxServer> server(String name, int listen) {
-        return servers.stream().filter(server -> server.getName().equals(name) && server.listen == listen).findAny();
+        return servers().filter(server -> server.getName().equals(name) && server.listen == listen).findAny();
+    }
+
+    public Stream<NginxServer> servers() { return servers.stream(); }
+
+    public void removeUpstream(NginxUpstream upstream) {
+        upstreams.remove(upstream);
     }
 
     public void removeUpstream(String name) {
@@ -82,6 +88,10 @@ public class NginxConfig {
         upstreams.add(upstream);
         upstreams.sort(null);
         return this;
+    }
+
+    public void removeServer(NginxServer server) {
+        servers.remove(server);
     }
 
     public void removeServer(HostPort hostPort) {
@@ -125,6 +135,8 @@ public class NginxConfig {
                 + "    }\n";
         }
 
+        public boolean isEmpty() { return hostPorts.isEmpty(); }
+
         public Stream<HostPort> hostPorts() { return hostPorts.stream(); }
 
         public boolean hasHost(String host) {
@@ -145,10 +157,9 @@ public class NginxConfig {
             return this;
         }
 
-        public NginxUpstream updateHostPort(HostPort hostPort) {
+        public void updateHostPort(HostPort hostPort) {
             removeHost(hostPort.getHost());
             addHostPort(hostPort);
-            return this;
         }
 
         public void setPort(HostPort hostPort, int port) {
