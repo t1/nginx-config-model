@@ -10,12 +10,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -30,8 +27,6 @@ import static java.util.stream.Collectors.joining;
 public class NginxConfig {
     @SneakyThrows(MalformedURLException.class)
     public static NginxConfig readFrom(URI uri) { return readFrom(uri.toURL()); }
-
-    public static NginxConfig readFrom(Reader reader) { return NginxConfigParser.parse(reader); }
 
     static NginxConfig readFrom(URL url) {
         try (InputStream inputStream = url.openStream()) {
@@ -49,11 +44,6 @@ public class NginxConfig {
     public static NginxConfig create() {
         return new NginxConfig("http {\n    ", "}\n", new ArrayList<>(), new ArrayList<>());
     }
-
-    @SneakyThrows(IOException.class) public void writeTo(Path path) {
-        Files.write(path, this.toString().getBytes());
-    }
-
 
     @Override public String toString() {
         return before + toStrings(upstreams, "\n    ") + toStrings(servers, "") + after;
