@@ -3,13 +3,13 @@ package com.github.t1.nginx;
 import com.github.t1.nginx.NginxConfig.NginxServer;
 import lombok.NonNull;
 import lombok.Value;
-import lombok.experimental.Wither;
+import lombok.With;
 
 import java.net.URI;
 import java.util.Comparator;
 
 @Value
-@Wither
+@With
 public class HostPort implements Comparable<HostPort> {
     public static final int DEFAULT_HTTP_PORT = 80;
 
