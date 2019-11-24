@@ -163,6 +163,13 @@ public class NginxConfig {
                 .map(HostPort::getPort)
                 .orElseThrow(() -> new IllegalStateException("no server for " + host + " in upstream " + name));
         }
+
+        public int indexOf(String host) {
+            for (int i = 0; i < hostPorts.size(); i++)
+                if (hostPorts.get(i).getHost().equals(host))
+                    return i;
+            throw new IllegalArgumentException("host [" + host + "] not in " + hostPorts);
+        }
     }
 
     @Data
